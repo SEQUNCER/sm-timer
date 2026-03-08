@@ -493,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modalForm: document.getElementById('addTimerForm'),
         cancelBtn: document.getElementById('cancelAddTimer'),
         timerName: document.getElementById('timerName'),
+        timerDate: document.getElementById('timerDate'),
         timerTime: document.getElementById('timerTime'),
         timerDuration: document.getElementById('timerDuration'),
         timerRepeat: document.getElementById('timerRepeat'),
@@ -500,6 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editForm: document.getElementById('editTimerForm'),
         editTimerId: document.getElementById('editTimerId'),
         editTimerName: document.getElementById('editTimerName'),
+        editTimerDate: document.getElementById('editTimerDate'),
         editTimerTime: document.getElementById('editTimerTime'),
         editTimerDuration: document.getElementById('editTimerDuration'),
         editTimerRepeat: document.getElementById('editTimerRepeat'),
@@ -551,6 +553,33 @@ document.addEventListener('DOMContentLoaded', () => {
             minute: '2-digit',
             hour12: false 
         });
+    }
+    
+    // Форматирование даты (DD.MM.YYYY)
+    function formatDateDMY(date) {
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}.${month}.${year}`;
+    }
+    
+    // Форматирование даты и времени для отображения
+    function formatDateTime(date) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        
+        const timeStr = formatTimeHM(date);
+        
+        if (targetDate.getTime() === today.getTime()) {
+            return `Сегодня, ${timeStr}`;
+        } else if (targetDate.getTime() === tomorrow.getTime()) {
+            return `Завтра, ${timeStr}`;
+        } else {
+            return `${formatDateDMY(date)}, ${timeStr}`;
+        }
     }
     
     // Форматирование оставшегося времени (MM:SS или HH:MM)
@@ -658,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="scheduled-item ${status}" data-id="${timer.id}">
                     <div class="scheduled-item-info">
-                        <div class="scheduled-item-time">${formatTimeHM(startTime)}</div>
+                        <div class="scheduled-item-time">${formatDateTime(startTime)}</div>
                         <div class="scheduled-item-duration">${durationMinutes} мин ${repeatHtml}</div>
                         ${timer.name ? `<div class="scheduled-item-name">${escapeHtml(timer.name)}</div>` : ''}
                         ${remainingHtml}
@@ -718,18 +747,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Добавление нового таймера
-    async function addScheduledTimer(name, timeStr, durationMinutes, repeatType = 'none') {
+    async function addScheduledTimer(name, dateStr, timeStr, durationMinutes, repeatType = 'none') {
         try {
-            // Создаем дату на основе текущей даты и указанного времени
-            const now = new Date();
+            // Создаем дату на основе указанной даты и времени
+            const [year, month, day] = dateStr.split('-').map(Number);
             const [hours, minutes] = timeStr.split(':').map(Number);
-            const startTime = new Date(now);
-            startTime.setHours(hours, minutes, 0, 0);
+            const startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
             
-            // Если время уже прошло сегодня, планируем на завтра
-            if (startTime <= now) {
-                startTime.setDate(startTime.getDate() + 1);
-            }
+            // Если время уже прошло, не переносим на завтра (пусть пользователь сам выберет дату)
+            const now = new Date();
             
             console.log('Adding timer:', {
                 room_id: GLOBAL_ROOM_ID,
@@ -853,10 +879,15 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.editTimerId.value = timer.id;
         elements.editTimerName.value = timer.name || '';
         
-        // Конвертация времени
+        // Конвертация даты и времени
         const startTime = new Date(timer.start_time);
+        const year = startTime.getFullYear();
+        const month = (startTime.getMonth() + 1).toString().padStart(2, '0');
+        const day = startTime.getDate().toString().padStart(2, '0');
         const hours = startTime.getHours().toString().padStart(2, '0');
         const minutes = startTime.getMinutes().toString().padStart(2, '0');
+        
+        elements.editTimerDate.value = `${year}-${month}-${day}`;
         elements.editTimerTime.value = `${hours}:${minutes}`;
         
         elements.editTimerDuration.value = Math.floor(timer.duration / 60);
@@ -871,21 +902,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Редактирование таймера
-    async function editScheduledTimer(id, name, timeStr, durationMinutes, repeatType) {
+    async function editScheduledTimer(id, name, dateStr, timeStr, durationMinutes, repeatType) {
         try {
             const timer = scheduledTimers.find(t => t.id === id);
             if (!timer) return;
             
-            // Создаем дату на основе текущей даты и указанного времени
-            const now = new Date();
+            // Создаем дату на основе указанной даты и времени
+            const [year, month, day] = dateStr.split('-').map(Number);
             const [hours, minutes] = timeStr.split(':').map(Number);
-            const startTime = new Date(now);
-            startTime.setHours(hours, minutes, 0, 0);
-            
-            // Если время уже прошло сегодня, планируем на завтра
-            if (startTime <= now) {
-                startTime.setDate(startTime.getDate() + 1);
-            }
+            const startTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
             
             const { error } = await supabase
                 .from('scheduled_timers')
@@ -1050,6 +1075,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Показ уведомления
     function showNotification(title, body) {
+        // Воспроизводим звук уведомления
+        try {
+            const audio = new Audio('notif.mp3');
+            audio.play().catch(e => console.log('Не удалось воспроизвести звук:', e));
+        } catch (e) {
+            console.log('Ошибка воспроизведения звука:', e);
+        }
+        
         // Используем Notification API
         if ('Notification' in window) {
             if (Notification.permission === 'granted') {
@@ -1079,9 +1112,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function openModal() {
         elements.modal.classList.add('active');
         elements.timerName.value = '';
+        elements.timerDate.value = '';
         elements.timerTime.value = '';
         elements.timerDuration.value = '5';
         elements.timerRepeat.value = 'none';
+        
+        // Устанавливаем сегодняшнюю дату по умолчанию
+        const today = new Date();
+        elements.timerDate.value = today.toISOString().split('T')[0];
+        
         elements.timerName.focus();
     }
     
@@ -1116,12 +1155,13 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         
         const name = elements.timerName.value.trim();
+        const date = elements.timerDate.value;
         const time = elements.timerTime.value;
         const duration = parseInt(elements.timerDuration.value);
         const repeat = elements.timerRepeat.value;
         
-        if (name && time && duration > 0) {
-            await addScheduledTimer(name, time, duration, repeat);
+        if (name && date && time && duration > 0) {
+            await addScheduledTimer(name, date, time, duration, repeat);
             closeModal();
         }
     });
@@ -1131,12 +1171,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const id = elements.editTimerId.value;
         const name = elements.editTimerName.value.trim();
+        const date = elements.editTimerDate.value;
         const time = elements.editTimerTime.value;
         const duration = parseInt(elements.editTimerDuration.value);
         const repeat = elements.editTimerRepeat.value;
         
-        if (id && name && time && duration > 0) {
-            await editScheduledTimer(id, name, time, duration, repeat);
+        if (id && name && date && time && duration > 0) {
+            await editScheduledTimer(id, name, date, time, duration, repeat);
             closeEditModal();
         }
     });
