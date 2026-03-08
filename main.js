@@ -468,3 +468,707 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Запуск
     await initRoom();
 });
+
+// ====================
+// Scheduled Timers Module
+// ====================
+
+document.addEventListener('DOMContentLoaded', () => {
+    const supabase = window.SM_Timer?.supabase;
+    if (!supabase) {
+        console.warn('Supabase not initialized, skipping scheduled timers');
+        return;
+    }
+    
+    // Состояние
+    let scheduledTimers = [];
+    let scheduledInterval = null;
+    let activeTimerId = null;
+    
+    // DOM элементы
+    const elements = {
+        scheduledList: document.getElementById('scheduledList'),
+        addTimerBtn: document.getElementById('addScheduledTimerBtn'),
+        modal: document.getElementById('addTimerModal'),
+        modalForm: document.getElementById('addTimerForm'),
+        cancelBtn: document.getElementById('cancelAddTimer'),
+        timerName: document.getElementById('timerName'),
+        timerTime: document.getElementById('timerTime'),
+        timerDuration: document.getElementById('timerDuration'),
+        timerRepeat: document.getElementById('timerRepeat'),
+        editModal: document.getElementById('editTimerModal'),
+        editForm: document.getElementById('editTimerForm'),
+        editTimerId: document.getElementById('editTimerId'),
+        editTimerName: document.getElementById('editTimerName'),
+        editTimerTime: document.getElementById('editTimerTime'),
+        editTimerDuration: document.getElementById('editTimerDuration'),
+        editTimerRepeat: document.getElementById('editTimerRepeat'),
+        cancelEditBtn: document.getElementById('cancelEditTimer'),
+        nextTimerCountdown: document.getElementById('nextTimerCountdown'),
+        nextTimerTime: document.getElementById('nextTimerTime')
+    };
+    
+    // Загрузка запланированных таймеров
+    async function loadScheduledTimers() {
+        try {
+            // Сначала проверим существует ли комната
+            const { data: room, error: roomError } = await supabase
+                .from('rooms')
+                .select('id')
+                .eq('id', GLOBAL_ROOM_ID)
+                .single();
+            
+            if (roomError) {
+                console.error('Room not found:', roomError);
+                console.log('GLOBAL_ROOM_ID:', GLOBAL_ROOM_ID);
+            } else {
+                console.log('Room exists:', room);
+            }
+            
+            const { data, error } = await supabase
+                .from('scheduled_timers')
+                .select('*')
+                .order('start_time', { ascending: true });
+            
+            if (error) {
+                console.error('Error loading scheduled timers:', error);
+                throw error;
+            }
+            
+            console.log('Loaded scheduled timers:', data);
+            scheduledTimers = data || [];
+            renderScheduledTimers();
+            startScheduledChecker();
+        } catch (error) {
+            console.error('Error loading scheduled timers:', error);
+        }
+    }
+    
+    // Форматирование времени (HH:MM)
+    function formatTimeHM(date) {
+        return date.toLocaleTimeString('ru-RU', { 
+            hour: '2-digit', 
+            minute: '2-digit',
+            hour12: false 
+        });
+    }
+    
+    // Форматирование оставшегося времени (MM:SS или HH:MM)
+    function formatRemainingTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        
+        if (hours > 0) {
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    // Определение статуса таймера
+    function getTimerStatus(timer) {
+        // Если таймер уже запущен вручную, возвращаем stored status
+        if (timer.status === 'running' || timer.status === 'cancelled' || timer.status === 'completed') {
+            return timer.status;
+        }
+        
+        const now = new Date();
+        const startTime = new Date(timer.start_time);
+        const endTime = new Date(startTime.getTime() + timer.duration * 1000);
+        
+        if (now < startTime) {
+            return 'pending';
+        }
+        
+        if (now >= startTime && now < endTime) {
+            return 'running';
+        }
+        
+        return 'expired';
+    }
+    
+    // Получение оставшегося времени для активного таймера
+    function getRemainingSeconds(timer) {
+        // Если есть started_at, используем его для расчёта
+        if (timer.started_at) {
+            const now = new Date();
+            const startedTime = new Date(timer.started_at);
+            const elapsed = Math.floor((now - startedTime) / 1000);
+            return Math.max(0, timer.duration - elapsed);
+        }
+        
+        const now = new Date();
+        const startTime = new Date(timer.start_time);
+        const endTime = new Date(startTime.getTime() + timer.duration * 1000);
+        const remaining = Math.floor((endTime - now) / 1000);
+        return Math.max(0, remaining);
+    }
+    
+    // Рендер списка таймеров
+    function renderScheduledTimers() {
+        if (scheduledTimers.length === 0) {
+            elements.scheduledList.innerHTML = '<div class="empty-state">Нет запланированных таймеров</div>';
+            updateNextTimerCountdown();
+            return;
+        }
+        
+        elements.scheduledList.innerHTML = scheduledTimers.map(timer => {
+            const status = getTimerStatus(timer);
+            const startTime = new Date(timer.start_time);
+            const durationMinutes = Math.floor(timer.duration / 60);
+            let remainingHtml = '';
+            let actionsHtml = '';
+            
+            // Определение повтора
+            let repeatHtml = '';
+            if (timer.repeat_type === 'daily') {
+                repeatHtml = '<span class="text-xs text-blue-400"><svg class="inline w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>Ежедневно</span>';
+            } else if (timer.repeat_type === 'weekly') {
+                repeatHtml = '<span class="text-xs text-purple-400"><svg class="inline w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/><path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/></svg>Еженедельно</span>';
+            }
+            
+            if (status === 'running') {
+                const remaining = getRemainingSeconds(timer);
+                remainingHtml = `<div class="scheduled-item-remaining">Осталось: ${formatRemainingTime(remaining)}</div>`;
+                
+                // Кнопка паузы/отмены для запущенного таймера
+                actionsHtml = `
+                    <button class="scheduled-item-cancel" data-id="${timer.id}" title="Отменить" onclick="cancelScheduledTimer('${timer.id}')"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"/></svg></button>
+                `;
+            } else if (status === 'pending') {
+                // Кнопка запуска и редактирования для ожидающего таймера
+                actionsHtml = `
+                    <button class="scheduled-item-play" data-id="${timer.id}" title="Запустить сейчас" onclick="startScheduledTimerNow('${timer.id}')"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg></button>
+                    <button class="scheduled-item-edit" data-id="${timer.id}" title="Редактировать" onclick="openEditModal('${timer.id}')"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg></button>
+                    <button class="scheduled-item-delete" data-id="${timer.id}" title="Удалить"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></button>
+                `;
+            } else if (status === 'completed') {
+                // Показать кнопку повтора для завершённого
+                actionsHtml = `
+                    <button class="scheduled-item-play" data-id="${timer.id}" title="Повторить" onclick="repeatScheduledTimer('${timer.id}')"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg></button>
+                    <button class="scheduled-item-delete" data-id="${timer.id}" title="Удалить"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></button>
+                `;
+            } else {
+                // expired или cancelled
+                actionsHtml = `
+                    <button class="scheduled-item-delete" data-id="${timer.id}" title="Удалить">&times;</button>
+                `;
+            }
+            
+            return `
+                <div class="scheduled-item ${status}" data-id="${timer.id}">
+                    <div class="scheduled-item-info">
+                        <div class="scheduled-item-time">${formatTimeHM(startTime)}</div>
+                        <div class="scheduled-item-duration">${durationMinutes} мин ${repeatHtml}</div>
+                        ${timer.name ? `<div class="scheduled-item-name">${escapeHtml(timer.name)}</div>` : ''}
+                        ${remainingHtml}
+                    </div>
+                    <div class="scheduled-item-actions">
+                        ${actionsHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Добавить обработчики для кнопок удаления
+        elements.scheduledList.querySelectorAll('.scheduled-item-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteScheduledTimer(btn.dataset.id);
+            });
+        });
+        
+        // Обновление обратного отсчёта до следующего таймера
+        updateNextTimerCountdown();
+    }
+    
+    // Обновление отображения времени до следующего таймера
+    function updateNextTimerCountdown() {
+        const now = new Date();
+        const pendingTimers = scheduledTimers.filter(t => {
+            const status = getTimerStatus(t);
+            return status === 'pending';
+        });
+        
+        if (pendingTimers.length > 0) {
+            const nextTimer = pendingTimers.reduce(( earliest, t) => {
+                const tTime = new Date(t.start_time);
+                const eTime = new Date(earliest.start_time);
+                return tTime < eTime ? t : earliest;
+            });
+            
+            const nextTime = new Date(nextTimer.start_time);
+            const diffMs = nextTime - now;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffSecs = Math.floor((diffMs % 60000) / 1000);
+            
+            elements.nextTimerCountdown.classList.remove('hidden');
+            elements.nextTimerCountdown.classList.add('active');
+            elements.nextTimerTime.textContent = `${diffMins}:${diffSecs.toString().padStart(2, '0')}`;
+        } else {
+            elements.nextTimerCountdown.classList.add('hidden');
+        }
+    }
+    
+    // Экранирование HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Добавление нового таймера
+    async function addScheduledTimer(name, timeStr, durationMinutes, repeatType = 'none') {
+        try {
+            // Создаем дату на основе текущей даты и указанного времени
+            const now = new Date();
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const startTime = new Date(now);
+            startTime.setHours(hours, minutes, 0, 0);
+            
+            // Если время уже прошло сегодня, планируем на завтра
+            if (startTime <= now) {
+                startTime.setDate(startTime.getDate() + 1);
+            }
+            
+            console.log('Adding timer:', {
+                room_id: GLOBAL_ROOM_ID,
+                name: name,
+                start_time: startTime.toISOString(),
+                duration: durationMinutes * 60,
+                status: 'pending',
+                remaining_seconds: durationMinutes * 60,
+                repeat_type: repeatType
+            });
+            
+            const { data, error } = await supabase
+                .from('scheduled_timers')
+                .insert({
+                    room_id: GLOBAL_ROOM_ID,
+                    name: name,
+                    start_time: startTime.toISOString(),
+                    duration: durationMinutes * 60,
+                    status: 'pending',
+                    remaining_seconds: durationMinutes * 60,
+                    repeat_type: repeatType
+                })
+                .select();
+            
+            if (error) {
+                console.error('Supabase error:', error);
+                alert('Ошибка добавления таймера: ' + error.message);
+                throw error;
+            }
+            
+            console.log('Timer added successfully:', data);
+            // Не добавляем локально - это сделает подписка realtime
+        } catch (error) {
+            console.error('Error adding scheduled timer:', error);
+            alert('Ошибка: ' + error.message);
+        }
+    }
+    
+    // Запуск таймера вручную (до назначенного времени)
+    window.startScheduledTimerNow = async function(id) {
+        console.log('Starting timer manually:', id);
+        const timer = scheduledTimers.find(t => t.id === id);
+        console.log('Found timer:', timer);
+        if (!timer || timer.status !== 'pending') {
+            console.log('Timer not found or not pending');
+            return;
+        }
+        
+        try {
+            const now = new Date();
+            console.log('Updating timer to running...');
+            const { data, error } = await supabase
+                .from('scheduled_timers')
+                .update({
+                    status: 'running',
+                    started_at: now.toISOString(),
+                    remaining_seconds: timer.duration
+                })
+                .eq('id', id)
+                .select();
+            
+            if (error) {
+                console.error('Error starting timer:', error);
+                alert('Ошибка: ' + error.message);
+            } else {
+                console.log('Timer started successfully:', data);
+            }
+        } catch (error) {
+            console.error('Error starting timer now:', error);
+        }
+    };
+    
+    // Отмена запущенного таймера
+    window.cancelScheduledTimer = async function(id) {
+        const timer = scheduledTimers.find(t => t.id === id);
+        if (!timer || timer.status !== 'running') return;
+        
+        try {
+            await supabase
+                .from('scheduled_timers')
+                .update({
+                    status: 'cancelled',
+                    remaining_seconds: 0
+                })
+                .eq('id', id);
+        } catch (error) {
+            console.error('Error cancelling timer:', error);
+        }
+    };
+    
+    // Повтор завершённого таймера
+    window.repeatScheduledTimer = async function(id) {
+        const timer = scheduledTimers.find(t => t.id === id);
+        if (!timer) return;
+        
+        try {
+            const now = new Date();
+            const startTime = new Date(now.getTime() + 60000); // Через минуту
+            
+            await supabase
+                .from('scheduled_timers')
+                .insert({
+                    room_id: GLOBAL_ROOM_ID,
+                    name: timer.name,
+                    start_time: startTime.toISOString(),
+                    duration: timer.duration,
+                    status: 'pending',
+                    remaining_seconds: timer.duration,
+                    repeat_type: timer.repeat_type
+                });
+        } catch (error) {
+            console.error('Error repeating timer:', error);
+        }
+    };
+    
+    // Открытие модального окна редактирования
+    window.openEditModal = function(id) {
+        const timer = scheduledTimers.find(t => t.id === id);
+        if (!timer) return;
+        
+        elements.editTimerId.value = timer.id;
+        elements.editTimerName.value = timer.name || '';
+        
+        // Конвертация времени
+        const startTime = new Date(timer.start_time);
+        const hours = startTime.getHours().toString().padStart(2, '0');
+        const minutes = startTime.getMinutes().toString().padStart(2, '0');
+        elements.editTimerTime.value = `${hours}:${minutes}`;
+        
+        elements.editTimerDuration.value = Math.floor(timer.duration / 60);
+        elements.editTimerRepeat.value = timer.repeat_type || 'none';
+        
+        elements.editModal.classList.add('active');
+    };
+    
+    // Закрытие модального окна редактирования
+    function closeEditModal() {
+        elements.editModal.classList.remove('active');
+    }
+    
+    // Редактирование таймера
+    async function editScheduledTimer(id, name, timeStr, durationMinutes, repeatType) {
+        try {
+            const timer = scheduledTimers.find(t => t.id === id);
+            if (!timer) return;
+            
+            // Создаем дату на основе текущей даты и указанного времени
+            const now = new Date();
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const startTime = new Date(now);
+            startTime.setHours(hours, minutes, 0, 0);
+            
+            // Если время уже прошло сегодня, планируем на завтра
+            if (startTime <= now) {
+                startTime.setDate(startTime.getDate() + 1);
+            }
+            
+            const { error } = await supabase
+                .from('scheduled_timers')
+                .update({
+                    name: name,
+                    start_time: startTime.toISOString(),
+                    duration: durationMinutes * 60,
+                    remaining_seconds: durationMinutes * 60,
+                    repeat_type: repeatType,
+                    status: 'pending'
+                })
+                .eq('id', id);
+            
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error editing scheduled timer:', error);
+        }
+    }
+    
+    // Удаление таймера
+    async function deleteScheduledTimer(id) {
+        try {
+            const { error } = await supabase
+                .from('scheduled_timers')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            
+            // Не удаляем локально - это сделает подписка realtime
+        } catch (error) {
+            console.error('Error deleting scheduled timer:', error);
+        }
+    }
+    
+    // Запуск проверки и обновления таймеров
+    function startScheduledChecker() {
+        if (scheduledInterval) clearInterval(scheduledInterval);
+        
+        scheduledInterval = setInterval(async () => {
+            let hasChanges = false;
+            const now = new Date();
+            
+            for (const timer of scheduledTimers) {
+                const status = getTimerStatus(timer);
+                const startTime = new Date(timer.start_time);
+                const endTime = new Date(startTime.getTime() + timer.duration * 1000);
+                
+                // Если таймер должен начаться
+                if (status === 'running' && timer.status !== 'running') {
+                    try {
+                        await supabase
+                            .from('scheduled_timers')
+                            .update({ 
+                                status: 'running',
+                                started_at: now.toISOString(),
+                                remaining_seconds: timer.duration
+                            })
+                            .eq('id', timer.id);
+                        
+                        timer.status = 'running';
+                        timer.started_at = now.toISOString();
+                        hasChanges = true;
+                        
+                        // Показать уведомление
+                        showNotification('Таймер запущен!', timer.name || 'Запланированный таймер');
+                    } catch (error) {
+                        console.error('Error starting timer:', error);
+                    }
+                }
+                
+                // Обновление оставшегося времени для активного таймера
+                if (timer.status === 'running') {
+                    const remaining = getRemainingSeconds(timer);
+                    
+                    if (remaining <= 0) {
+                        // Таймер завершен
+                        try {
+                            // Если это повторяющийся таймер - планируем следующий
+                            if (timer.repeat_type && timer.repeat_type !== 'none') {
+                                const nextStart = new Date(timer.start_time);
+                                if (timer.repeat_type === 'daily') {
+                                    nextStart.setDate(nextStart.getDate() + 1);
+                                } else if (timer.repeat_type === 'weekly') {
+                                    nextStart.setDate(nextStart.getDate() + 7);
+                                }
+                                
+                                // Создаём новый таймер для следующего раза
+                                await supabase
+                                    .from('scheduled_timers')
+                                    .insert({
+                                        room_id: GLOBAL_ROOM_ID,
+                                        name: timer.name,
+                                        start_time: nextStart.toISOString(),
+                                        duration: timer.duration,
+                                        status: 'pending',
+                                        remaining_seconds: timer.duration,
+                                        repeat_type: timer.repeat_type
+                                    });
+                                
+                                // Помечаем текущий как завершённый
+                                await supabase
+                                    .from('scheduled_timers')
+                                    .update({ 
+                                        status: 'completed',
+                                        completed_at: now.toISOString(),
+                                        remaining_seconds: 0
+                                    })
+                                    .eq('id', timer.id);
+                                
+                                timer.status = 'completed';
+                            } else {
+                                await supabase
+                                    .from('scheduled_timers')
+                                    .update({ 
+                                        status: 'completed',
+                                        completed_at: now.toISOString(),
+                                        remaining_seconds: 0
+                                    })
+                                    .eq('id', timer.id);
+                                
+                                timer.status = 'completed';
+                            }
+                            
+                            timer.completed_at = now.toISOString();
+                            hasChanges = true;
+                            
+                            // Показать уведомление о завершении
+                            showNotification('Таймер завершен!', timer.name || 'Запланированный таймер');
+                        } catch (error) {
+                            console.error('Error completing timer:', error);
+                        }
+                    } else {
+                        // Периодически обновляем оставшееся время в БД
+                        if (remaining % 10 === 0) {
+                            try {
+                                await supabase
+                                    .from('scheduled_timers')
+                                    .update({ remaining_seconds: remaining })
+                                    .eq('id', timer.id);
+                            } catch (error) {
+                                // Игнорируем ошибки обновления
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (hasChanges) {
+                renderScheduledTimers();
+            } else {
+                // Просто обновляем отображение оставшегося времени
+                const runningTimers = scheduledTimers.filter(t => t.status === 'running');
+                if (runningTimers.length > 0) {
+                    renderScheduledTimers();
+                }
+                // Также обновляем countdown до следующего
+                updateNextTimerCountdown();
+            }
+        }, 1000);
+    }
+    
+    // Показ уведомления
+    function showNotification(title, body) {
+        // Используем Notification API
+        if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+                new Notification(title, {
+                    body: body,
+                    icon: 'icon.png'
+                });
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission().then(permission => {
+                    if (permission === 'granted') {
+                        new Notification(title, {
+                            body: body,
+                            icon: 'icon.png'
+                        });
+                    }
+                });
+            }
+        }
+        
+        // Также показываем alert как резервный вариант
+        setTimeout(() => {
+            alert(`${title}\n${body}`);
+        }, 1000);
+    }
+    
+    // Открытие модального окна
+    function openModal() {
+        elements.modal.classList.add('active');
+        elements.timerName.value = '';
+        elements.timerTime.value = '';
+        elements.timerDuration.value = '5';
+        elements.timerRepeat.value = 'none';
+        elements.timerName.focus();
+    }
+    
+    // Закрытие модального окна
+    function closeModal() {
+        elements.modal.classList.remove('active');
+    }
+    
+    // Обработчики событий
+    elements.addTimerBtn.addEventListener('click', openModal);
+    elements.cancelBtn.addEventListener('click', closeModal);
+    elements.cancelEditBtn.addEventListener('click', closeEditModal);
+    elements.modal.addEventListener('click', (e) => {
+        if (e.target === elements.modal) {
+            closeModal();
+        }
+    });
+    elements.editModal.addEventListener('click', (e) => {
+        if (e.target === elements.editModal) {
+            closeEditModal();
+        }
+    });
+    
+    // Обработчики быстрых значений длительности
+    document.querySelectorAll('.duration-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+            elements.timerDuration.value = btn.dataset.duration;
+        });
+    });
+    
+    elements.modalForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const name = elements.timerName.value.trim();
+        const time = elements.timerTime.value;
+        const duration = parseInt(elements.timerDuration.value);
+        const repeat = elements.timerRepeat.value;
+        
+        if (name && time && duration > 0) {
+            await addScheduledTimer(name, time, duration, repeat);
+            closeModal();
+        }
+    });
+    
+    elements.editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const id = elements.editTimerId.value;
+        const name = elements.editTimerName.value.trim();
+        const time = elements.editTimerTime.value;
+        const duration = parseInt(elements.editTimerDuration.value);
+        const repeat = elements.editTimerRepeat.value;
+        
+        if (id && name && time && duration > 0) {
+            await editScheduledTimer(id, name, time, duration, repeat);
+            closeEditModal();
+        }
+    });
+    
+    // Подписка на изменения в БД
+    supabase
+        .channel('scheduled_timers')
+        .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'scheduled_timers'
+        }, (payload) => {
+            console.log('Scheduled timer changed:', payload);
+            
+            if (payload.eventType === 'INSERT') {
+                scheduledTimers.push(payload.new);
+                scheduledTimers.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+            } else if (payload.eventType === 'UPDATE') {
+                const index = scheduledTimers.findIndex(t => t.id === payload.new.id);
+                if (index !== -1) {
+                    scheduledTimers[index] = { ...scheduledTimers[index], ...payload.new };
+                }
+            } else if (payload.eventType === 'DELETE') {
+                scheduledTimers = scheduledTimers.filter(t => t.id !== payload.old.id);
+            }
+            
+            renderScheduledTimers();
+        })
+        .subscribe((status) => {
+            console.log('Scheduled timers subscription status:', status);
+        });
+    
+    // Загрузка таймеров при инициализации
+    loadScheduledTimers();
+});

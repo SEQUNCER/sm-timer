@@ -123,31 +123,533 @@
         
         /* Mobile responsive */
         @media (max-width: 640px) {
+            body {
+                padding: 0.75rem;
+            }
+            
+            .card {
+                padding: 1.25rem !important;
+                border-radius: 12px;
+            }
+            
             .timer-font {
-                font-size: 4rem !important;
+                font-size: 2.75rem !important;
+                letter-spacing: 0.02em;
+            }
+            
+            .timer-subtext {
+                font-size: 0.75rem !important;
+            }
+            
+            .mode-selector {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .mode-selector span {
+                font-size: 0.7rem;
+            }
+            
+            .mode-btn {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.75rem;
             }
             
             .controls-grid {
                 grid-template-columns: repeat(3, 1fr) !important;
+                gap: 0.5rem !important;
             }
+            
+            .btn-control {
+                padding: 0.75rem 0.5rem !important;
+                min-width: 80px !important;
+                font-size: 0.875rem !important;
+                border-radius: 10px !important;
+            }
+            
+            .btn-add {
+                padding: 0.4rem 0.6rem;
+                font-size: 0.7rem;
+            }
+            
+            .duration-controls {
+                flex-direction: column;
+                gap: 0.5rem !important;
+            }
+            
+            .duration-input {
+                width: 70px !important;
+                padding: 0.5rem !important;
+                font-size: 0.875rem !important;
+            }
+            
+            .header-status {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .info-text {
+                font-size: 0.7rem;
+            }
+            
+            .scheduled-section {
+                padding: 0 0.25rem;
+            }
+            
+            .scheduled-title {
+                font-size: 1rem;
+            }
+            
+            .scheduled-item {
+                padding: 0.6rem 0.75rem;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .scheduled-item-info {
+                width: 100%;
+            }
+            
+            .scheduled-item-time {
+                font-size: 0.9rem;
+            }
+            
+            .scheduled-item-duration {
+                font-size: 0.7rem;
+            }
+            
+            .scheduled-item-name {
+                font-size: 0.8rem;
+            }
+            
+            .scheduled-item-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+            
+            .modal-overlay {
+                align-items: flex-end;
+                padding: 0;
+            }
+            
+            .modal-content {
+                width: 100%;
+                max-width: 100%;
+                max-height: 85vh;
+                border-radius: 16px 16px 0 0;
+                overflow-y: auto;
+                padding: 1.25rem;
+            }
+            
+            .modal-title {
+                font-size: 1.1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .form-input {
+                padding: 0.6rem;
+                font-size: 0.9rem;
+            }
+            
+            .modal-buttons {
+                flex-direction: column;
+                position: sticky;
+                bottom: 0;
+                background: #1f1f1f;
+                padding-top: 0.5rem;
+                margin: 0 -1.25rem;
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+                padding-bottom: 0.5rem;
+            }
+            
+            .modal-btn {
+                padding: 0.75rem;
+            }
+            
+            .duration-presets {
+                flex-wrap: wrap;
+            }
+            
+            .duration-preset {
+                padding: 0.3rem 0.5rem;
+                font-size: 0.7rem;
+                flex: 1 1 30%;
+                text-align: center;
+            }
+            
+            .status-text {
+                font-size: 0.7rem;
+            }
+            
+            .next-timer-badge {
+                font-size: 0.65rem;
+                padding: 0.2rem 0.5rem;
+            }
+        }
+        
+        /* Extra small screens */
+        @media (max-width: 380px) {
+            .timer-font {
+                font-size: 2.25rem !important;
+            }
+            
+            .btn-control {
+                min-width: 70px !important;
+                font-size: 0.8rem !important;
+                padding: 0.6rem 0.4rem !important;
+            }
+        }
+        
+        /* Touch device improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .btn-control,
+            .mode-btn,
+            .btn-add,
+            .add-timer-btn,
+            .modal-btn {
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+            }
+            
+            .btn-control:active:not(:disabled) {
+                transform: scale(0.95);
+            }
+        }
+        
+        /* Scheduled Timers Styles */
+        .scheduled-section {
+            margin-top: 2rem;
+            max-width: 42rem;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+        }
+        
+        .scheduled-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .scheduled-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #e5e7eb;
+        }
+        
+        .scheduled-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .scheduled-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            background-color: #1f1f1f;
+            border: 1px solid #2a2a2a;
+            transition: all 0.2s ease;
+        }
+        
+        .scheduled-item.pending {
+            border-left: 3px solid #f97316;
+        }
+        
+        .scheduled-item.running {
+            border-left: 3px solid #22c55e;
+            background-color: #1a2e1a;
+        }
+        
+        .scheduled-item.completed,
+        .scheduled-item.expired {
+            border-left: 3px solid #6b7280;
+            opacity: 0.6;
+        }
+        
+        .scheduled-item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .scheduled-item-time {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #f3f4f6;
+        }
+        
+        .scheduled-item-duration {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+        
+        .scheduled-item-name {
+            font-size: 0.875rem;
+            color: #d1d5db;
+            margin-top: 0.25rem;
+        }
+        
+        .scheduled-item-remaining {
+            font-size: 0.875rem;
+            color: #22c55e;
+            font-weight: 500;
+        }
+        
+        .scheduled-item-delete {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0.25rem;
+            margin-left: 0.5rem;
+            font-size: 1.25rem;
+            line-height: 1;
+        }
+        
+        .scheduled-item-delete:hover {
+            color: #ef4444;
+        }
+        
+        .scheduled-item-edit {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        
+        .scheduled-item-edit:hover {
+            color: #3b82f6;
+        }
+        
+        .scheduled-item-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .add-timer-btn {
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            background-color: #262626;
+            color: #d1d5db;
+            border: 1px solid #3a3a3a;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .add-timer-btn:hover {
+            background-color: #333333;
+            transform: scale(1.05);
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background-color: #1f1f1f;
+            border: 1px solid #2a2a2a;
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 400px;
+            transform: scale(0.9);
+            transition: transform 0.2s ease;
+        }
+        
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #f3f4f6;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            background-color: #262626;
+            border: 1px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #f3f4f6;
+            font-size: 1rem;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #4b5563;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        
+        .modal-btn-cancel {
+            background-color: #262626;
+            color: #9ca3af;
+            border: 1px solid #3a3a3a;
+        }
+        
+        .modal-btn-cancel:hover {
+            background-color: #333333;
+        }
+        
+        .modal-btn-submit {
+            background-color: #374151;
+            color: #f3f4f6;
+            border: none;
+        }
+        
+        .modal-btn-submit:hover {
+            background-color: #4b5563;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+        
+        .duration-preset:hover {
+            border-color: #4b5563;
+        }
+        
+        .scheduled-item-play {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        
+        .scheduled-item-play:hover {
+            color: #22c55e;
+        }
+        
+        .scheduled-item-cancel {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1rem;
+            line-height: 1;
+        }
+        
+        .scheduled-item-cancel:hover {
+            color: #eab308;
+        }
+        
+        .timer-countdown-badge {
+            background-color: #1f2937;
+            color: #9ca3af;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .timer-countdown-badge.active {
+            background-color: #065f46;
+            color: #34d399;
+        }
+        
+        .scheduled-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .next-timer-countdown {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+        
+        .next-timer-countdown.active {
+            color: #22c55e;
         }
     </style>
 </head>
-<body class="flex flex-col min-h-screen p-4">
+<body class="flex flex-col min-h-screen p-2 sm:p-4">
     <!-- Header -->
-    <header class="flex justify-center items-center mb-6">
-        <div class="flex items-center gap-3">
+    <header class="flex flex-col sm:flex-row justify-center items-center mb-4 sm:mb-6 gap-2 sm:gap-0">
+        <div class="flex items-center gap-3 header-status">
             <div id="statusIndicator" class="status-indicator status-stopped"></div>
-            <span id="statusText" class="text-sm text-gray-500">Остановлен</span>
+            <span id="statusText" class="text-sm text-gray-500 status-text">Остановлен</span>
+        </div>
+        <div id="nextTimerCountdown" class="timer-countdown-badge ml-0 sm:ml-4 mt-2 sm:mt-0 next-timer-badge hidden">
+            Следующий через: <span id="nextTimerTime">--:--</span>
         </div>
     </header>
     
     <!-- Main Timer Card -->
     <main class="flex-1 flex flex-col items-center justify-center">
-        <div class="card w-full max-w-2xl p-8">
+        <div class="card w-full max-w-2xl p-4 sm:p-6 md:p-8">
             <!-- Mode Selector -->
-            <div class="flex justify-center items-center mb-8">
-                <div class="flex items-center gap-2">
+            <div class="flex justify-center items-center mb-6 sm:mb-8">
+                <div class="flex flex-col sm:flex-row items-center gap-2 sm:gap-2 mode-selector">
                     <span class="text-gray-400 text-sm">Режим:</span>
                     <div class="flex gap-1">
                         <button id="modeCountdown" class="mode-btn active">Таймер</button>
@@ -157,42 +659,42 @@
             </div>
             
             <!-- Timer Display -->
-            <div class="text-center mb-8">
-                <div id="timerDisplay" class="timer-display timer-font text-7xl font-bold text-white mb-4">
+            <div class="text-center mb-6 sm:mb-8">
+                <div id="timerDisplay" class="timer-display timer-font text-5xl sm:text-6xl md:text-7xl font-bold text-white mb-2 sm:mb-4">
                     05:00
                 </div>
-                <div id="timerSubtext" class="text-gray-500 text-sm">
+                <div id="timerSubtext" class="text-gray-500 text-sm timer-subtext">
                     Таймер
                 </div>
             </div>
             
             <!-- Main Controls -->
-            <div class="flex justify-center gap-4 mb-8">
-                <button id="btnStart" class="btn-control btn-start px-8 py-4 rounded-xl font-semibold text-lg min-w-[120px]">
+            <div class="flex flex-wrap justify-center gap-2 sm:gap-4 mb-6 sm:mb-8">
+                <button id="btnStart" class="btn-control btn-start px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg min-w-[80px] sm:min-w-[100px] md:min-w-[120px]">
                     Старт
                 </button>
-                <button id="btnPause" class="btn-control btn-pause px-8 py-4 rounded-xl font-semibold text-lg min-w-[120px]" disabled>
+                <button id="btnPause" class="btn-control btn-pause px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg min-w-[80px] sm:min-w-[100px] md:min-w-[120px]" disabled>
                     Пауза
                 </button>
-                <button id="btnReset" class="btn-control btn-reset px-8 py-4 rounded-xl font-semibold text-lg min-w-[120px]">
+                <button id="btnReset" class="btn-control btn-reset px-4 sm:px-6 md:px-8 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg min-w-[80px] sm:min-w-[100px] md:min-w-[120px]">
                     Сброс
                 </button>
             </div>
             
             <!-- Add Time Buttons (for countdown) -->
-            <div id="addTimeControls" class="flex justify-center gap-2 mb-4">
+            <div id="addTimeControls" class="flex justify-center gap-2 mb-4 flex-wrap">
                 <button id="add30s" class="btn-add rounded-lg">+30s</button>
                 <button id="add1m" class="btn-add rounded-lg">+1m</button>
                 <button id="add5m" class="btn-add rounded-lg">+5m</button>
             </div>
             
             <!-- Duration Input (for countdown) -->
-            <div id="durationControls" class="flex justify-center items-center gap-3 mb-4">
+            <div id="durationControls" class="flex justify-center items-center gap-2 sm:gap-3 mb-4 flex-wrap duration-controls">
                 <span class="text-gray-500 text-sm">Длительность:</span>
                 <input 
                     type="number" 
                     id="durationInput" 
-                    class="bg-[#262626] border border-[#3a3a3a] rounded-lg px-3 py-2 text-white text-center w-20"
+                    class="bg-[#262626] border border-[#3a3a3a] rounded-lg px-2 sm:px-3 py-2 text-white text-center w-16 sm:w-20 duration-input"
                     value="5"
                     min="1"
                     max="180"
@@ -202,13 +704,106 @@
         </div>
         
         <!-- Info -->
-        <p class="text-center text-gray-600 text-sm mt-6">
+        <p class="text-center text-gray-600 text-xs sm:text-sm mt-4 sm:mt-6 info-text px-2">
             Таймер синхронизируется между всеми устройствами
         </p>
     </main>
     
+    <!-- Scheduled Timers Section -->
+    <section class="scheduled-section px-2 sm:px-0">
+        <div class="scheduled-section-header flex-col sm:flex-row gap-2 sm:gap-0">
+            <h2 class="scheduled-title">Запланированные</h2>
+            <div class="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                <span id="nextTimerCountdown" class="next-timer-countdown hidden text-xs sm:text-sm">Через <span id="nextTimerTime">--:--</span></span>
+                <button id="addScheduledTimerBtn" class="add-timer-btn" title="Добавить таймер">
+                    +
+                </button>
+            </div>
+        </div>
+        <div id="scheduledList" class="scheduled-list">
+            <div class="empty-state">Нет запланированных таймеров</div>
+        </div>
+    </section>
+    
+    <!-- Add Timer Modal -->
+    <div id="addTimerModal" class="modal-overlay p-4">
+        <div class="modal-content">
+            <h3 class="modal-title">Добавить таймер</h3>
+            <form id="addTimerForm">
+                <div class="form-group">
+                    <label class="form-label" for="timerName">Название</label>
+                    <input type="text" id="timerName" class="form-input" placeholder="Например: Напоминание о встрече" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="timerTime">Время запуска (HH:MM)</label>
+                    <input type="time" id="timerTime" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="timerDuration">Длительность (минуты)</label>
+                    <input type="number" id="timerDuration" class="form-input" min="1" max="180" value="5" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Быстрые значения</label>
+                    <div class="flex gap-1 sm:gap-2 mb-2 flex-wrap duration-presets">
+                        <button type="button" class="duration-preset bg-[#262626] hover:bg-[#333333] text-gray-400 hover:text-white px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm border border-[#3a3a3a] transition-colors" data-duration="1">1 мин</button>
+                        <button type="button" class="duration-preset bg-[#262626] hover:bg-[#333333] text-gray-400 hover:text-white px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm border border-[#3a3a3a] transition-colors" data-duration="5">5 мин</button>
+                        <button type="button" class="duration-preset bg-[#262626] hover:bg-[#333333] text-gray-400 hover:text-white px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm border border-[#3a3a3a] transition-colors" data-duration="10">10 мин</button>
+                        <button type="button" class="duration-preset bg-[#262626] hover:bg-[#333333] text-gray-400 hover:text-white px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm border border-[#3a3a3a] transition-colors" data-duration="15">15 мин</button>
+                        <button type="button" class="duration-preset bg-[#262626] hover:bg-[#333333] text-gray-400 hover:text-white px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm border border-[#3a3a3a] transition-colors" data-duration="30">30 мин</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Повтор</label>
+                    <select id="timerRepeat" class="form-input">
+                        <option value="none">Без повтора</option>
+                        <option value="daily">Каждый день</option>
+                        <option value="weekly">Каждую неделю</option>
+                    </select>
+                </div>
+                <div class="modal-buttons flex-col sm:flex-row">
+                    <button type="button" id="cancelAddTimer" class="modal-btn modal-btn-cancel w-full sm:flex-1">Отмена</button>
+                    <button type="submit" class="modal-btn modal-btn-submit w-full sm:flex-1">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Edit Timer Modal -->
+    <div id="editTimerModal" class="modal-overlay p-4">
+        <div class="modal-content">
+            <h3 class="modal-title">Редактировать таймер</h3>
+            <form id="editTimerForm">
+                <input type="hidden" id="editTimerId">
+                <div class="form-group">
+                    <label class="form-label" for="editTimerName">Название</label>
+                    <input type="text" id="editTimerName" class="form-input" placeholder="Например: Напоминание о встрече" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editTimerTime">Время запуска (HH:MM)</label>
+                    <input type="time" id="editTimerTime" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editTimerDuration">Длительность (минуты)</label>
+                    <input type="number" id="editTimerDuration" class="form-input" min="1" max="180" value="5" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Повтор</label>
+                    <select id="editTimerRepeat" class="form-input">
+                        <option value="none">Без повтора</option>
+                        <option value="daily">Каждый день</option>
+                        <option value="weekly">Каждую неделю</option>
+                    </select>
+                </div>
+                <div class="modal-buttons flex-col sm:flex-row">
+                    <button type="button" id="cancelEditTimer" class="modal-btn modal-btn-cancel w-full sm:flex-1">Отмена</button>
+                    <button type="submit" class="modal-btn modal-btn-submit w-full sm:flex-1">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <!-- Error Display -->
-    <div id="errorToast" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-900 text-red-200 px-4 py-2 rounded-lg hidden">
+    <div id="errorToast" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-red-900 text-red-200 px-3 sm:px-4 py-2 rounded-lg hidden text-xs sm:text-sm w-[90%] sm:w-auto max-w-sm text-center">
         Ошибка подключения
     </div>
     
